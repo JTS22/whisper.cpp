@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en-us">
     <head>
-        <title>command : Voice assistant example using Whisper + WebAssembly</title>
+        <title>SmartHome Voice Assistant</title>
 
         <style>
             #output {
@@ -29,21 +29,7 @@
     </head>
     <body>
         <div id="main-container">
-            <b>command : Voice assistant example using Whisper + WebAssembly</b>
-
-            <br><br>
-
-            You can find more about this project on <a href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/command.wasm">GitHub</a>.
-
-            <br><br>
-
-            <b>More examples:</b>
-                <a href="../">main</a> |
-                <a href="../bench.wasm/">bench</a> |
-                <a href="../stream.wasm">stream</a> |
-                <a href="../command.wasm/">command</a> |
-
-            <br><br>
+            <b>SmartHome Voice Assistant</b>
 
             <hr>
 
@@ -59,12 +45,17 @@
                 Quantized models:<br><br>
                 <button id="fetch-whisper-tiny-en-q5_1"   onclick="loadWhisper('tiny-en-q5_1')">tiny.en (Q5_1, 31 MB)</button>
                 <button id="fetch-whisper-base-en-q5_1"   onclick="loadWhisper('base-en-q5_1')">base.en (Q5_1, 57 MB)</button>
+                <button id="fetch-whisper-base-q5_1"      onclick="loadWhisper('base-q5_1')">base (Q5_1, 57 MB)</button>
                 <span id="fetch-whisper-progress"></span>
-
                 <!--
                     <input type="file" id="file" name="file" onchange="loadFile(event, 'whisper.bin')" />
                 -->
             </div>
+
+            <br><br>
+
+            <label for="prompt-box">Prompt:</label>
+            <input type="text" id="prompt-box" style="width: 300px;", value="Hey Agent">
 
             <br>
 
@@ -86,30 +77,6 @@
 
             Debug output:
             <textarea id="output" rows="20"></textarea>
-
-            <br>
-
-            <b>Troubleshooting</b>
-
-            <br><br>
-
-            The page does some heavy computations, so make sure:
-
-            <ul>
-                <li>To use a modern web browser (e.g. Chrome, Firefox)</li>
-                <li>To use a fast desktop or laptop computer (i.e. not a mobile phone)</li>
-                <li>Your browser supports WASM <a href="https://webassembly.org/roadmap/">Fixed-width SIMD</a></li>
-            </ul>
-
-            <div class="cell-version">
-                <span>
-                    |
-                    Build time: <span class="nav-link">@GIT_DATE@</span> |
-                    Commit hash: <a class="nav-link" href="https://github.com/ggerganov/whisper.cpp/commit/@GIT_SHA1@">@GIT_SHA1@</a> |
-                    Commit subject: <span class="nav-link">@GIT_COMMIT_SUBJECT@</span> |
-                    <a class="nav-link" href="https://github.com/ggerganov/whisper.cpp/tree/master/examples/command.wasm">Source Code</a> |
-                </span>
-            </div>
         </div>
 
         <script type="text/javascript" src="helpers.js"></script>
@@ -179,6 +146,7 @@
 
                     'tiny-en-q5_1':  'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en-q5_1.bin',
                     'base-en-q5_1':  'https://whisper.ggerganov.com/ggml-model-whisper-base.en-q5_1.bin',
+                    'base-q5_1':     'https://whisper.ggerganov.com/ggml-model-whisper-base-q5_1.bin'
                 };
 
                 let sizes = {
@@ -187,6 +155,7 @@
 
                     'tiny-en-q5_1':   31,
                     'base-en-q5_1':   57,
+                    'base-q5_1':      57,
                 };
 
                 let url     = urls[model];
@@ -200,6 +169,7 @@
 
                 document.getElementById('fetch-whisper-tiny-en-q5_1').style.display = 'none';
                 document.getElementById('fetch-whisper-base-en-q5_1').style.display = 'none';
+                document.getElementById('fetch-whisper-base-q5_1').style.display = 'none';
 
                 document.getElementById('model-whisper-status').innerHTML = 'loading "' + model + '" ... ';
 
@@ -215,6 +185,7 @@
 
                     el = document.getElementById('fetch-whisper-tiny-en-q5_1'); if (el) el.style.display = 'inline-block';
                     el = document.getElementById('fetch-whisper-base-en-q5_1'); if (el) el.style.display = 'inline-block';
+                    el = document.getElementById('fetch-whisper-base-q5_1'); if (el) el.style.display = 'inline-block';
 
                     el = document.getElementById('model-whisper-status');  if (el) el.innerHTML = '';
                 };
@@ -380,12 +351,32 @@
                     return;
                 }
 
+                Module.set_prompt(document.getElementById('prompt-box').value)
+                document.getElementById('prompt-box').disabled = true;
+
                 startRecording();
 
                 intervalUpdate = setInterval(function() {
                     var transcribed = Module.get_transcribed();
 
                     if (transcribed != null && transcribed.length > 1) {
+                        onStop()
+                        // Send the transcribed query to the agent endpoint
+                        fetch("/converse", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                prompt: transcribed,
+                            }),
+                            headers: {
+                                "Content-type": "application/json; charset=UTF-8"
+                            }
+                        })
+                        .then((response) => response.json())
+                        .then((json) => {
+                            console.log(json);
+                            onStart();
+                        });
+
                         transcribedAll += transcribed + '<br>';
                         nLines++;
 
@@ -406,6 +397,7 @@
 
             function onStop() {
                 stopRecording();
+                document.getElementById('prompt-box').disabled = false;
             }
 
         </script>
