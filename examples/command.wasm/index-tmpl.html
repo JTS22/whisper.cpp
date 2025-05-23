@@ -55,7 +55,7 @@
             <br><br>
 
             <label for="prompt-box">Prompt:</label>
-            <input type="text" id="prompt-box" style="width: 300px;", value="Hey Agent">
+            <input type="text" id="prompt-box" style="width: 300px;", value="Hey Agent, ">
 
             <br>
 
@@ -63,6 +63,7 @@
                 <button id="start" onclick="onStart()" disabled>Start</button>
                 <button id="stop"  onclick="onStop()" disabled>Stop</button>
                 <button id="clear" onclick="clearCache()">Clear Cache</button>
+                <button id="reset" onclick="reset()">Reset History</button>
             </div>
 
             <br>
@@ -141,12 +142,12 @@
 
             function loadWhisper(model) {
                 let urls = {
-                    'tiny.en': 'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en.bin',
-                    'base.en': 'https://whisper.ggerganov.com/ggml-model-whisper-base.en.bin',
+                    'tiny.en': 'ggml-tiny.en.bin',
+                    'base.en': 'ggml-base.en.bin',
 
-                    'tiny-en-q5_1':  'https://whisper.ggerganov.com/ggml-model-whisper-tiny.en-q5_1.bin',
-                    'base-en-q5_1':  'https://whisper.ggerganov.com/ggml-model-whisper-base.en-q5_1.bin',
-                    'base-q5_1':     'https://whisper.ggerganov.com/ggml-model-whisper-base-q5_1.bin'
+                    'tiny-en-q5_1':  'ggml-tiny.en-q5_1.bin',
+                    'base-en-q5_1':  'ggml-base.en-q5_1.bin',
+                    'base-q5_1':     'ggml-base-q5_1.bin'
                 };
 
                 let sizes = {
@@ -358,6 +359,7 @@
 
                 intervalUpdate = setInterval(function() {
                     var transcribed = Module.get_transcribed();
+                    transcribed = transcribed.trim();
 
                     if (transcribed != null && transcribed.length > 1) {
                         onStop()
@@ -374,6 +376,12 @@
                         .then((response) => response.json())
                         .then((json) => {
                             console.log(json);
+                            transcribedAll += '> ' + json + '<br>';
+
+                            // Speak the response using Web Speech API
+                            const utterance = new SpeechSynthesisUtterance(json);
+                            speechSynthesis.speak(utterance);
+
                             onStart();
                         });
 
@@ -381,7 +389,7 @@
                         nLines++;
 
                         // if more than 10 lines, remove the first line
-                        if (nLines > 10) {
+                        if (nLines > 15) {
                             var i = transcribedAll.indexOf('<br>');
                             if (i > 0) {
                                 transcribedAll = transcribedAll.substring(i + 4);
@@ -398,6 +406,16 @@
             function onStop() {
                 stopRecording();
                 document.getElementById('prompt-box').disabled = false;
+            }
+
+            function reset() {
+                fetch("/reset", {
+                            method: "POST",
+                            body: JSON.stringify({ }),
+                            headers: {
+                                "Content-type": "application/json; charset=UTF-8"
+                            }
+                        });
             }
 
         </script>
